@@ -1,0 +1,11 @@
+[package]
+name = "chaikin_animation"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+minifb = "0.23"  # For window and graphics
+nalgebra = "0.33"  # For vector math
+rand = "0.8"  # For random colors
+log = "0.4"  # For logging
+env_logger = "0.10"  # Added for logging
