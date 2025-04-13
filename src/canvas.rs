@@ -20,10 +20,14 @@ impl Canvas {
             width,
             height,
             WindowOptions {
-                resize: false,
+                resize: true,
                 borderless: false,
                 title: true,
-                ..Default::default()
+                scale: minifb::Scale::X1,
+                scale_mode: minifb::ScaleMode::AspectRatioStretch,
+                topmost: false,
+                transparency: false,
+                none: false,
             },
         ).expect("Failed to create window");
 
