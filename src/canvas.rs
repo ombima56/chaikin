@@ -1,4 +1,5 @@
 use minifb::{Window, WindowOptions};
+use std::time::{Duration, Instant};
 use super::point::Point;
 use super::chaikin::Chaikin;
 use super::input::InputHandler;
@@ -7,6 +8,8 @@ pub struct Canvas {
     window: Window,
     buffer: Vec<u32>,
     chaikin: Chaikin,
+    last_frame_time: Instant,
+    frame_duration: Duration,
 }
 
 impl Canvas {
@@ -18,7 +21,8 @@ impl Canvas {
             height,
             WindowOptions {
                 resize: false,
-                borderless: true,
+                borderless: false,
+                title: true,
                 ..Default::default()
             },
         ).expect("Failed to create window");
@@ -32,6 +36,8 @@ impl Canvas {
             window,
             buffer,
             chaikin,
+            last_frame_time: Instant::now(),
+            frame_duration: Duration::from_millis(16), // ~60 FPS
         }
     }
 
@@ -40,6 +46,14 @@ impl Canvas {
     }
 
     pub fn update(&mut self, input: &mut InputHandler) -> Result<(), String> {
+        // Limit frame rate to avoid consuming too much CPU
+        let now = Instant::now();
+        let elapsed = now - self.last_frame_time;
+        if elapsed < self.frame_duration {
+            std::thread::sleep(self.frame_duration - elapsed);
+        }
+        self.last_frame_time = Instant::now();
+
         // Handle input
         input.handle_input(&mut self.window);
 
@@ -50,16 +64,15 @@ impl Canvas {
         let points: Vec<Point> = input
             .points()
             .iter()
-            .map(|&(x, y)| Point::new(x as f64, y as f64))
+            .map(|&(x, y)| Point::new(x, y))
             .collect();
 
         // Update Chaikin points if animating
         if input.is_animating() && !points.is_empty() {
             self.chaikin.set_points(points.clone());
-            let new_points = self.chaikin.step();
-            self.draw_smooth_curve(&new_points);
+            let animated_points = self.chaikin.step();
+            self.draw_animated_curve(&animated_points);
         } else {
-            self.chaikin.set_points(points.clone());
             self.draw_points(&points);
         }
 
@@ -87,16 +100,30 @@ impl Canvas {
 
     fn draw_message(&mut self, message: &str) {
         let height = self.window.get_size().1;
-        let mut x = 10;
-        let y = height - 30;
+        let mut y = height - 30;
+        let lines: Vec<&str> = message.lines().collect();
         
-        for c in message.chars() {
-            if c == ' ' {
-                x += 10;
-            } else {
-                self.draw_point(x as f64, y as f64, [255, 255, 255], 5.0);
-                x += 10;
+        for line in lines {
+            let mut x = 10;
+            for c in line.chars() {
+                if c == ' ' {
+                    x += 10;
+                } else {
+                    self.draw_char(x, y, c, [255, 255, 255]);
+                    x += 10;
+                }
             }
+            y -= 15;
+        }
+    }
+    
+    fn draw_char(&mut self, x: usize, y: usize, c: char, color: [u8; 3]) {
+        // Very simple character rendering - just dots for simplicity
+        match c {
+            'A'..='Z' | 'a'..='z' | '0'..='9' | '.' | ',' | '!' | '?' | ':' | ';' | '(' | ')' => {
+                self.draw_point(x as f64, y as f64, color, 3.0);
+            }
+            _ => {}
         }
     }
 
@@ -111,11 +138,13 @@ impl Canvas {
                 if dx * dx + dy * dy <= (radius * radius) as i32 {
                     let px = x + dx;
                     let py = y + dy;
-                    if px >= 0 && px < 800 as i32 && py >= 0 && py < 600 as i32 {
-                        let idx = (py * 800 as i32 + px) as usize;
-                        self.buffer[idx] = ((color[0] as u32) << 16) | 
-                                         ((color[1] as u32) << 8) | 
-                                          (color[2] as u32);
+                    if px >= 0 && px < 800 && py >= 0 && py < 600 {
+                        let idx = (py * 800 + px) as usize;
+                        if idx < self.buffer.len() {
+                            self.buffer[idx] = ((color[0] as u32) << 16) | 
+                                             ((color[1] as u32) << 8) | 
+                                              (color[2] as u32);
+                        }
                     }
                 }
             }
@@ -139,11 +168,13 @@ impl Canvas {
         let mut y = y1;
 
         while x != x2 || y != y2 {
-            if x >= 0 && x < 800 as i32 && y >= 0 && y < 600 as i32 {
-                let idx = (y * 800 as i32 + x) as usize;
-                self.buffer[idx] = ((color[0] as u32) << 16) | 
-                                 ((color[1] as u32) << 8) | 
-                                  (color[2] as u32);
+            if x >= 0 && x < 800 && y >= 0 && y < 600 {
+                let idx = (y * 800 + x) as usize;
+                if idx < self.buffer.len() {
+                    self.buffer[idx] = ((color[0] as u32) << 16) | 
+                                     ((color[1] as u32) << 8) | 
+                                      (color[2] as u32);
+                }
             }
 
             let e2 = 2 * err;
@@ -158,36 +189,68 @@ impl Canvas {
         }
     }
 
-    fn draw_smooth_curve(&mut self, points: &[Point]) {
-        // Draw control points
+    fn draw_animated_curve(&mut self, points: &[Point]) {
+        // Draw all points first
         for point in points {
-            self.draw_point(
-                point.position.x,
-                point.position.y,
-                point.color,
-                if points.len() == 1 { 5.0 } else { 3.0 },
+            let color = point.color;
+            let size = if color == [255, 0, 0] { 4.0 } else { 2.0 }; // Control points larger
+            self.draw_point(point.position.x, point.position.y, color, size);
+        }
+
+        // Find and connect points of the same color to form continuous curves
+        let mut red_points = Vec::new();
+        let mut green_points = Vec::new();
+        
+        for point in points {
+            match point.color {
+                [255, 0, 0] => red_points.push(point),
+                [0, 255, 0] => green_points.push(point),
+                _ => {} // Ignore other colors
+            }
+        }
+
+        // Draw lines between original control points
+        for i in 0..red_points.len().saturating_sub(1) {
+            self.draw_line(
+                red_points[i].position.x,
+                red_points[i].position.y,
+                red_points[i + 1].position.x,
+                red_points[i + 1].position.y,
+                [128, 0, 0] // Darker red for control point lines
             );
         }
 
-        // Draw lines between points
-        for i in 0..points.len() - 1 {
+        // Draw lines between animated curve points
+        for i in 0..green_points.len().saturating_sub(1) {
             self.draw_line(
-                points[i].position.x,
-                points[i].position.y,
-                points[i + 1].position.x,
-                points[i + 1].position.y,
-                points[i].color,
+                green_points[i].position.x,
+                green_points[i].position.y,
+                green_points[i + 1].position.x,
+                green_points[i + 1].position.y,
+                [0, 255, 0] // Green for the animated curve
             );
         }
     }
 
     fn draw_points(&mut self, points: &[Point]) {
+        // Draw points
         for point in points {
             self.draw_point(
                 point.position.x,
                 point.position.y,
-                point.color,
+                [255, 255, 255], // White for regular points
                 if points.len() == 1 { 5.0 } else { 3.0 },
+            );
+        }
+
+        // Draw lines between points
+        for i in 0..points.len().saturating_sub(1) {
+            self.draw_line(
+                points[i].position.x,
+                points[i].position.y,
+                points[i + 1].position.x,
+                points[i + 1].position.y,
+                [128, 128, 128] // Gray for lines
             );
         }
     }
