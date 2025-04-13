@@ -1,29 +1,28 @@
 use super::point::Point;
 use nalgebra::Vector2;
-use std::time::{Duration, Instant};
-
+use std::time::Instant;
 pub struct Chaikin {
     original_points: Vec<Point>,
-    control_points: Vec<Point>,
-    animated_points: Vec<Point>,
+    current_points: Vec<Point>,
+    next_points: Vec<Point>,
+    animation_progress: f64,
     current_step: usize,
     max_steps: usize,
-    animation_timer: Instant,
-    animation_duration: Duration,
-    t: f64, // Animation progress from 0.0 to 1.0
+    last_update: Instant,
+    animation_speed: f64,
 }
 
 impl Chaikin {
     pub fn new(points: Vec<Point>) -> Self {
         Self {
             original_points: points.clone(),
-            control_points: points.clone(),
-            animated_points: Vec::new(),
+            current_points: points.clone(),
+            next_points: Vec::new(),
+            animation_progress: 0.0,
             current_step: 0,
             max_steps: 7,
-            animation_timer: Instant::now(),
-            animation_duration: Duration::from_millis(500), // Half a second per step
-            t: 0.0,
+            last_update: Instant::now(),
+            animation_speed: 1.0,
         }
     }
 
@@ -32,193 +31,239 @@ impl Chaikin {
             return self.original_points.clone();
         }
 
-        // Update animation timer
-        let elapsed = self.animation_timer.elapsed();
-        self.t = elapsed.as_secs_f64() / self.animation_duration.as_secs_f64();
+        // Calculate time delta for smooth animation
+        let now = Instant::now();
+        let delta_time = now.duration_since(self.last_update).as_secs_f64();
+        self.last_update = now;
 
-        // If current animation step is complete
-        if self.t >= 1.0 {
-            // Advance to next step
-            self.current_step = (self.current_step + 1) % self.max_steps;
-            
-            // If we've completed all steps, prepare for next cycle
-            if self.current_step == 0 {
-                self.control_points = self.original_points.clone();
-            } else {
-                // Apply one step of Chaikin's algorithm to the control points
-                self.control_points = self.apply_chaikin_once(&self.control_points);
-            }
-            
-            // Reset animation timer and progress
-            self.animation_timer = Instant::now();
-            self.t = 0.0;
-        }
-
-        // Calculate the next set of points for animation
-        let next_points = if self.current_step == self.max_steps - 1 {
-            // If this is the last step, we'll animate back to the original points
-            self.original_points.clone()
-        } else {
-            // Otherwise, calculate the next step of Chaikin's algorithm
-            self.apply_chaikin_once(&self.control_points)
-        };
-
-        // Interpolate between current control points and next points
-        self.animated_points = self.interpolate(&self.control_points, &next_points, self.t);
+        // Update animation progress
+        self.animation_progress += delta_time * self.animation_speed;
         
-        // Create visualization
-        self.create_visualization()
+        // If we completed the current animation step
+        if self.animation_progress >= 1.0 {
+            self.animation_progress = 0.0;
+            
+            // Move to the next iteration
+            self.current_step = (self.current_step + 1) % self.max_steps;
+            self.current_points = self.next_points.clone();
+            self.next_points = Vec::new();
+        }
+        
+        // If we need to calculate the next points
+        if self.next_points.is_empty() {
+            if self.current_step == 0 {
+                // If we're starting, use original points as current
+                self.current_points = self.original_points.clone();
+                
+                // Calculate first Chaikin iteration as next
+                if self.original_points.len() >= 2 {
+                    self.next_points = self.apply_chaikin(&self.original_points);
+                } else {
+                    self.next_points = self.original_points.clone();
+                }
+            } else if self.current_step == self.max_steps - 1 {
+                // If we're at the last step, next will be original points again
+                self.next_points = self.original_points.clone();
+            } else {
+                // Otherwise, calculate next Chaikin iteration
+                self.next_points = self.apply_chaikin(&self.current_points);
+            }
+        }
+        
+        // Interpolate between current and next points
+        let result = self.interpolate(self.animation_progress);
+        
+        // Return visualization
+        self.create_visualization(result)
     }
     
-    // Apply one iteration of Chaikin's algorithm
-    fn apply_chaikin_once(&self, points: &[Point]) -> Vec<Point> {
+    // Apply one step of Chaikin's algorithm
+    fn apply_chaikin(&self, points: &[Point]) -> Vec<Point> {
         if points.len() < 2 {
             return points.to_vec();
         }
         
-        let mut new_points = Vec::new();
-        let n = points.len();
+        let mut result = Vec::new();
         
-        // Keep first point for open curves
-        new_points.push(points[0].clone());
+        // First point stays the same (for open curves)
+        result.push(points[0].clone());
         
-        // Apply algorithm to each pair of points
-        for i in 0..n-1 {
-            let p1 = points[i].position;
-            let p2 = points[i+1].position;
+        // Apply Chaikin's corner cutting
+        for i in 0..points.len() - 1 {
+            let p0 = points[i].position;
+            let p1 = points[i+1].position;
             
-            // Q point (1/4 point) - 75% of p1, 25% of p2
-            let q = Point {
+            // Q point (1/4 point)
+            result.push(Point {
                 position: Vector2::new(
-                    0.75 * p1.x + 0.25 * p2.x,
-                    0.75 * p1.y + 0.25 * p2.y
+                    0.75 * p0.x + 0.25 * p1.x,
+                    0.75 * p0.y + 0.25 * p1.y
                 ),
                 color: [255, 255, 255],
-            };
+            });
             
-            // R point (3/4 point) - 25% of p1, 75% of p2
-            let r = Point {
+            // R point (3/4 point)
+            result.push(Point {
                 position: Vector2::new(
-                    0.25 * p1.x + 0.75 * p2.x,
-                    0.25 * p1.y + 0.75 * p2.y
+                    0.25 * p0.x + 0.75 * p1.x,
+                    0.25 * p0.y + 0.75 * p1.y
                 ),
                 color: [255, 255, 255],
-            };
-            
-            new_points.push(q);
-            new_points.push(r);
+            });
         }
         
-        // Keep last point for open curves
-        new_points.push(points[n-1].clone());
+        // Last point stays the same (for open curves)
+        result.push(points[points.len() - 1].clone());
         
-        new_points
+        result
     }
     
-    // Interpolate between two sets of points
-    fn interpolate(&self, from_points: &[Point], to_points: &[Point], t: f64) -> Vec<Point> {
-        // If the number of points differs, we need to handle this specially
-        if from_points.len() != to_points.len() {
-            // If we're transitioning to more points (normal step)
-            if from_points.len() < to_points.len() {
-                let mut result = Vec::new();
-                
-                // Keep original points in their positions
-                for point in from_points {
-                    result.push(point.clone());
-                }
-                
-                // Gradually introduce new points
-                for i in from_points.len()..to_points.len() {
-                    // Find nearest point in from_points
-                    let new_point = to_points[i];
-                    let mut nearest_idx = 0;
-                    let mut min_dist = f64::MAX;
-                    
-                    for (j, from_point) in from_points.iter().enumerate() {
-                        let dx = from_point.position.x - new_point.position.x;
-                        let dy = from_point.position.y - new_point.position.y;
-                        let dist = dx*dx + dy*dy;
-                        
-                        if dist < min_dist {
-                            min_dist = dist;
-                            nearest_idx = j;
-                        }
-                    }
-                    
-                    // Interpolate from nearest point
-                    let from = from_points[nearest_idx].position;
-                    let to = new_point.position;
-                    
-                    let x = from.x + (to.x - from.x) * t;
-                    let y = from.y + (to.y - from.y) * t;
-                    
-                    result.push(Point::with_color(x, y, [255, 255, 255]));
-                }
-                
-                return result;
-            } else {
-                // If we're transitioning to fewer points (reset to original)
-                let mut result = Vec::new();
-                
-                // Include all target points
-                for point in to_points {
-                    result.push(point.clone());
-                }
-                
-                // Gradually fade out extra points
-                for i in to_points.len()..from_points.len() {
-                    // Find nearest point in to_points
-                    let old_point = from_points[i];
-                    let mut nearest_idx = 0;
-                    let mut min_dist = f64::MAX;
-                    
-                    for (j, to_point) in to_points.iter().enumerate() {
-                        let dx = to_point.position.x - old_point.position.x;
-                        let dy = to_point.position.y - old_point.position.y;
-                        let dist = dx*dx + dy*dy;
-                        
-                        if dist < min_dist {
-                            min_dist = dist;
-                            nearest_idx = j;
-                        }
-                    }
-                    
-                    // Interpolate towards nearest point
-                    let from = old_point.position;
-                    let to = to_points[nearest_idx].position;
-                    
-                    let x = from.x + (to.x - from.x) * t;
-                    let y = from.y + (to.y - from.y) * t;
-                    
-                    // Fade out by reducing alpha (not directly supported,
-                    // but we can adjust color brightness)
-                    let brightness = ((1.0 - t) * 255.0) as u8;
-                    result.push(Point::with_color(x, y, [brightness, brightness, brightness]));
-                }
-                
-                return result;
-            }
+    // Interpolate between current and next points based on animation progress
+    fn interpolate(&self, t: f64) -> Vec<Point> {
+        // If either set is empty, return the other
+        if self.current_points.is_empty() {
+            return self.next_points.clone();
+        }
+        if self.next_points.is_empty() {
+            return self.current_points.clone();
+        }
+        
+        // Handle different point counts
+        if self.current_points.len() != self.next_points.len() {
+            return self.interpolate_different_point_counts(t);
         }
         
         // Simple case: same number of points
         let mut result = Vec::new();
-        
-        for i in 0..from_points.len() {
-            let from = from_points[i].position;
-            let to = to_points[i].position;
+        for i in 0..self.current_points.len() {
+            let p1 = self.current_points[i].position;
+            let p2 = self.next_points[i].position;
             
-            let x = from.x + (to.x - from.x) * t;
-            let y = from.y + (to.y - from.y) * t;
-            
-            result.push(Point::with_color(x, y, [255, 255, 255]));
+            result.push(Point {
+                position: Vector2::new(
+                    p1.x + t * (p2.x - p1.x),
+                    p1.y + t * (p2.y - p1.y)
+                ),
+                color: self.current_points[i].color,
+            });
         }
         
         result
     }
     
-    // Create visualization of the current state
-    fn create_visualization(&self) -> Vec<Point> {
+    // Handle interpolation when point counts differ
+    fn interpolate_different_point_counts(&self, t: f64) -> Vec<Point> {
+        let mut result = Vec::new();
+        
+        // First and last points always stay the same
+        result.push(Point {
+            position: Vector2::new(
+                self.current_points[0].position.x + t * (self.next_points[0].position.x - self.current_points[0].position.x),
+                self.current_points[0].position.y + t * (self.next_points[0].position.y - self.current_points[0].position.y)
+            ),
+            color: [255, 255, 255],
+        });
+        
+        // For intermediate points, we need to map between different counts
+        // Use a continuous mapping based on position along the curve
+        
+        // Create normalized positions for both point sets
+        let curr_len = self.current_points.len();
+        let next_len = self.next_points.len();
+        
+        // For each point in the more dense set, interpolate a corresponding point
+        if curr_len > next_len {
+            for i in 1..curr_len-1 {
+                // Normalized position in the curve [0..1]
+                let pos = i as f64 / (curr_len - 1) as f64;
+                
+                // Find two nearest points in next_points
+                let next_idx = (pos * (next_len - 1) as f64).floor() as usize;
+                let next_idx2 = (next_idx + 1).min(next_len - 1);
+                
+                let next_pos = next_idx as f64 / (next_len - 1) as f64;
+                let next_pos2 = next_idx2 as f64 / (next_len - 1) as f64;
+                
+                // Local interpolation factor
+                let local_t = if next_pos2 > next_pos {
+                    (pos - next_pos) / (next_pos2 - next_pos)
+                } else {
+                    0.0
+                };
+                
+                // Interpolate between the two nearest points
+                let p1 = self.next_points[next_idx].position;
+                let p2 = self.next_points[next_idx2].position;
+                let target = Vector2::new(
+                    p1.x + local_t * (p2.x - p1.x),
+                    p1.y + local_t * (p2.y - p1.y)
+                );
+                
+                // Interpolate from current to target
+                let curr = self.current_points[i].position;
+                result.push(Point {
+                    position: Vector2::new(
+                        curr.x + t * (target.x - curr.x),
+                        curr.y + t * (target.y - curr.y)
+                    ),
+                    color: [255, 255, 255],
+                });
+            }
+        } else {
+            for i in 1..next_len-1 {
+                // Normalized position in the curve [0..1]
+                let pos = i as f64 / (next_len - 1) as f64;
+                
+                // Find two nearest points in current_points
+                let curr_idx = (pos * (curr_len - 1) as f64).floor() as usize;
+                let curr_idx2 = (curr_idx + 1).min(curr_len - 1);
+                
+                let curr_pos = curr_idx as f64 / (curr_len - 1) as f64;
+                let curr_pos2 = curr_idx2 as f64 / (curr_len - 1) as f64;
+                
+                // Local interpolation factor
+                let local_t = if curr_pos2 > curr_pos {
+                    (pos - curr_pos) / (curr_pos2 - curr_pos)
+                } else {
+                    0.0
+                };
+                
+                // Interpolate between the two nearest points
+                let p1 = self.current_points[curr_idx].position;
+                let p2 = self.current_points[curr_idx2].position;
+                let source = Vector2::new(
+                    p1.x + local_t * (p2.x - p1.x),
+                    p1.y + local_t * (p2.y - p1.y)
+                );
+                
+                // Interpolate from source to target
+                let target = self.next_points[i].position;
+                result.push(Point {
+                    position: Vector2::new(
+                        source.x + t * (target.x - source.x),
+                        source.y + t * (target.y - source.y)
+                    ),
+                    color: [255, 255, 255],
+                });
+            }
+        }
+        
+        // Last point
+        let last_curr = self.current_points[curr_len - 1].position;
+        let last_next = self.next_points[next_len - 1].position;
+        result.push(Point {
+            position: Vector2::new(
+                last_curr.x + t * (last_next.x - last_curr.x),
+                last_curr.y + t * (last_next.y - last_curr.y)
+            ),
+            color: [255, 255, 255],
+        });
+        
+        result
+    }
+    
+    // Create visualization with original control points highlighted
+    fn create_visualization(&self, points: Vec<Point>) -> Vec<Point> {
         let mut result = Vec::new();
         
         // Add original control points in red
@@ -230,8 +275,8 @@ impl Chaikin {
             ));
         }
         
-        // Add current animated curve points in green
-        for point in &self.animated_points {
+        // Add animation points in green
+        for point in points {
             result.push(Point::with_color(
                 point.position.x,
                 point.position.y,
@@ -243,11 +288,13 @@ impl Chaikin {
     }
 
     pub fn set_points(&mut self, points: Vec<Point>) {
-        self.original_points = points.clone();
-        self.control_points = points.clone();
-        self.animated_points = Vec::new();
-        self.current_step = 0;
-        self.animation_timer = Instant::now();
-        self.t = 0.0;
+        if self.original_points != points {
+            self.original_points = points.clone();
+            self.current_points = points;
+            self.next_points = Vec::new();
+            self.animation_progress = 0.0;
+            self.current_step = 0;
+            self.last_update = Instant::now();
+        }
     }
 }
