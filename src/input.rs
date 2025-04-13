@@ -8,6 +8,7 @@ pub struct InputHandler {
     should_close: bool,
     dragging_point: Option<usize>,
     message: Option<String>,
+    key_cooldown: u32,
 }
 
 impl InputHandler {
@@ -20,6 +21,7 @@ impl InputHandler {
             should_close: false,
             dragging_point: None,
             message: None,
+            key_cooldown: 0,
         }
     }
 
@@ -30,37 +32,54 @@ impl InputHandler {
         }
 
         // Check if mouse button is down
+        let was_mouse_down = self.mouse_down;
         self.mouse_down = window.get_mouse_down(MouseButton::Left);
+
+        // Decrement cooldown timer
+        if self.key_cooldown > 0 {
+            self.key_cooldown -= 1;
+        }
 
         // Handle key presses
         if window.is_key_down(Key::Escape) {
             self.should_close = true;
-        } else if window.is_key_down(Key::Enter) {
+        } else if window.is_key_down(Key::Enter) && self.key_cooldown == 0 {
             if self.points.is_empty() {
                 self.message = Some("Please draw control points first!\nPress Enter to continue".to_string());
-            } else {
+            } else if !self.is_animating {
                 self.is_animating = true;
             }
-        } else if window.is_key_down(Key::Space) {
+            self.key_cooldown = 20; // Prevent multiple triggers
+        } else if window.is_key_down(Key::Space) && self.key_cooldown == 0 {
             self.points.clear();
             self.is_animating = false;
+            self.key_cooldown = 20; // Prevent multiple triggers
         }
 
         // Handle point dragging
         if self.mouse_down {
-            if let Some(idx) = self.find_nearest_point() {
-                self.dragging_point = Some(idx);
+            if let Some(idx) = self.dragging_point {
+                // Continue dragging existing point
                 self.points[idx] = self.mouse_pos;
+            } else if was_mouse_down {
+                // Check if we should start dragging a point
+                if let Some(idx) = self.find_nearest_point() {
+                    self.dragging_point = Some(idx);
+                    self.points[idx] = self.mouse_pos;
+                }
             } else if !self.is_animating {
+                // Add a new point
                 self.add_point(self.mouse_pos.0, self.mouse_pos.1);
             }
         } else {
+            // Mouse released
             self.dragging_point = None;
         }
 
         // Clear message if Enter is pressed again
-        if window.is_key_down(Key::Enter) && self.message.is_some() {
+        if window.is_key_down(Key::Enter) && self.message.is_some() && self.key_cooldown == 0 {
             self.message = None;
+            self.key_cooldown = 20;
         }
     }
 
