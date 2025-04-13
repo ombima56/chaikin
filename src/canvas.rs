@@ -198,26 +198,15 @@ impl Canvas {
         }
 
         // Find and connect points of the same color to form continuous curves
-        let mut red_points = Vec::new();
+        // let mut red_points = Vec::new();
         let mut green_points = Vec::new();
         
         for point in points {
             match point.color {
-                [255, 0, 0] => red_points.push(point),
+                // [255, 0, 0] => red_points.push(point),
                 [0, 255, 0] => green_points.push(point),
                 _ => {} // Ignore other colors
             }
-        }
-
-        // Draw lines between original control points
-        for i in 0..red_points.len().saturating_sub(1) {
-            self.draw_line(
-                red_points[i].position.x,
-                red_points[i].position.y,
-                red_points[i + 1].position.x,
-                red_points[i + 1].position.y,
-                [128, 0, 0] // Darker red for control point lines
-            );
         }
 
         // Draw lines between animated curve points
@@ -243,15 +232,5 @@ impl Canvas {
             );
         }
 
-        // Draw lines between points
-        for i in 0..points.len().saturating_sub(1) {
-            self.draw_line(
-                points[i].position.x,
-                points[i].position.y,
-                points[i + 1].position.x,
-                points[i + 1].position.y,
-                [128, 128, 128] // Gray for lines
-            );
-        }
     }
 }
