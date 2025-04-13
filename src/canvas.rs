@@ -193,7 +193,7 @@ impl Canvas {
         // Draw all points first
         for point in points {
             let color = point.color;
-            let size = if color == [255, 0, 0] { 4.0 } else { 2.0 }; // Control points larger
+            let size = if color == [255, 0, 0] { 5.0 } else { 2.5 };
             self.draw_point(point.position.x, point.position.y, color, size);
         }
 
@@ -216,7 +216,7 @@ impl Canvas {
                 green_points[i].position.y,
                 green_points[i + 1].position.x,
                 green_points[i + 1].position.y,
-                [0, 255, 0] // Green for the animated curve
+                [0, 255, 255] // Cyan for the animated curve - better contrast
             );
         }
     }
@@ -224,11 +224,25 @@ impl Canvas {
     fn draw_points(&mut self, points: &[Point]) {
         // Draw points
         for point in points {
+            // Special case: single point just shows as a larger circle
+            // Two points will show as a line with circles at endpoints
+            // More points will show control points and the curve
             self.draw_point(
                 point.position.x,
                 point.position.y,
-                [255, 255, 255], // White for regular points
-                if points.len() == 1 { 5.0 } else { 3.0 },
+                [255, 165, 0], // Orange for control points - more visible
+                if points.len() == 1 { 6.0 } else { 4.0 }, // Larger circles for better visibility
+            );
+        }
+        
+        // Special case: draw line between points when exactly two points
+        if points.len() == 2 {
+            self.draw_line(
+                points[0].position.x,
+                points[0].position.y,
+                points[1].position.x,
+                points[1].position.y,
+                [255, 165, 0] // Orange to match control points
             );
         }
 
