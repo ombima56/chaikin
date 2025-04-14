@@ -184,7 +184,7 @@ impl Canvas {
         
         for line in lines {
             self.draw_text_string(10, y, line, 0xFFFFFF);
-            y += 25; // Line spacing
+            y += 25; 
         }
     }
 
