@@ -193,7 +193,7 @@ impl Canvas {
         
         for c in text.chars() {
             self.draw_large_char(pos_x, y, c, color);
-            pos_x += 10; // Character spacing
+            pos_x += 10; 
         }
     }
     
