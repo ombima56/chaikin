@@ -57,10 +57,8 @@ impl InputHandler {
         // Handle point dragging
         if self.mouse_down {
             if let Some(idx) = self.dragging_point {
-                // Continue dragging existing point
                 self.points[idx] = self.mouse_pos;
             } else if was_mouse_down {
-                // Check if we should start dragging a point
                 if let Some(idx) = self.find_nearest_point() {
                     self.dragging_point = Some(idx);
                     self.points[idx] = self.mouse_pos;
