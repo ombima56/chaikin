@@ -114,7 +114,6 @@ impl Canvas {
             }
         }
     
-        // Update window
         self.window
             .update_with_buffer(&self.buffer, 800, 600)
             .map_err(|e| format!("Failed to update window: {}", e))
