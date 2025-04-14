@@ -42,7 +42,7 @@ impl Canvas {
             buffer,
             chaikin,
             last_frame_time: Instant::now(),
-            frame_duration: Duration::from_millis(16), // ~60 FPS
+            frame_duration: Duration::from_millis(16),
             empty_points_message: None,
         }
     }
@@ -60,10 +60,8 @@ impl Canvas {
         }
         self.last_frame_time = Instant::now();
     
-        // Handle input
         input.handle_input(&mut self.window);
     
-        // Clear buffer
         self.buffer.fill(0);
     
         // Convert points to Point structs
@@ -90,7 +88,6 @@ impl Canvas {
             self.draw_points(&points);
         }
     
-        // Draw dragging indicator if dragging
         if let Some(idx) = input.dragging_point() {
             let (x, y) = input.points()[idx];
             self.draw_point(x as f64, y as f64, [255, 0, 0], 8.0);
@@ -101,7 +98,6 @@ impl Canvas {
         if let Some(message) = input_message {
             self.draw_message(&message);
             
-            // Clear message after Enter is pressed
             if self.window.is_key_down(minifb::Key::Enter) {
                 input.clear_message();
             }
@@ -118,7 +114,6 @@ impl Canvas {
             }
         }
     
-        // Update window
         self.window
             .update_with_buffer(&self.buffer, 800, 600)
             .map_err(|e| format!("Failed to update window: {}", e))
@@ -143,15 +138,14 @@ impl Canvas {
                 if x < width && y < height {
                     let idx = (y * width + x) as usize;
                     if idx < self.buffer.len() {
-                        // Darker background for better contrast
-                        self.buffer[idx] = 0x202020; // Dark gray
+                        self.buffer[idx] = 0x202020;
                     }
                 }
             }
         }
         
         // Draw a border around the rectangle
-        let border_color = 0xFFFFFF; // White border
+        let border_color = 0xFFFFFF;
         
         // Top border
         for x in 5..5 + bg_width {
@@ -186,11 +180,11 @@ impl Canvas {
         }
         
         // Draw the text
-        let mut y = bg_y + 15; // Start position
+        let mut y = bg_y + 15;
         
         for line in lines {
-            self.draw_text_string(10, y, line, 0xFFFFFF); // White text
-            y += 25; // Line spacing
+            self.draw_text_string(10, y, line, 0xFFFFFF);
+            y += 25; 
         }
     }
 
@@ -199,7 +193,7 @@ impl Canvas {
         
         for c in text.chars() {
             self.draw_large_char(pos_x, y, c, color);
-            pos_x += 10; // Character spacing
+            pos_x += 10; 
         }
     }
     
@@ -207,11 +201,9 @@ impl Canvas {
         // Simplified larger characters using blocks instead of bitmaps
         match c {
             'A'..='Z' | 'a'..='z' | '0'..='9' | '.' | ',' | '!' | '?' | ':' | ';' | '(' | ')' | ' ' => {
-                // Draw more visible characters
                 self.draw_block_char(x, y, c, color);
             },
             _ => {
-                // For unsupported characters, draw a visible placeholder
                 self.draw_block_char(x, y, '#', color);
             }
         }
@@ -981,14 +973,12 @@ impl Canvas {
         }
 
         // Find and connect points of the same color to form continuous curves
-        // let mut red_points = Vec::new();
         let mut green_points = Vec::new();
         
         for point in points {
             match point.color {
-                // [255, 0, 0] => red_points.push(point),
                 [0, 255, 0] => green_points.push(point),
-                _ => {} // Ignore other colors
+                _ => {} 
             }
         }
 
@@ -999,7 +989,7 @@ impl Canvas {
                 green_points[i].position.y,
                 green_points[i + 1].position.x,
                 green_points[i + 1].position.y,
-                [0, 255, 255] // Cyan for the animated curve - better contrast
+                [0, 255, 255] 
             );
         }
     }
@@ -1013,8 +1003,8 @@ impl Canvas {
             self.draw_point(
                 point.position.x,
                 point.position.y,
-                [255, 165, 0], // Orange for control points - more visible
-                if points.len() == 1 { 6.0 } else { 4.0 }, // Larger circles for better visibility
+                [255, 165, 0],
+                if points.len() == 1 { 6.0 } else { 4.0 }, 
             );
         }
         

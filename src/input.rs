@@ -26,12 +26,10 @@ impl InputHandler {
     }
 
     pub fn handle_input(&mut self, window: &mut minifb::Window) {
-        // Update mouse position
         if let Some((x, y)) = window.get_mouse_pos(MouseMode::Pass) {
             self.mouse_pos = (x as f64, y as f64);
         }
 
-        // Check if mouse button is down
         let was_mouse_down = self.mouse_down;
         self.mouse_down = window.get_mouse_down(MouseButton::Left);
 
@@ -49,20 +47,18 @@ impl InputHandler {
             } else if !self.is_animating {
                 self.is_animating = true;
             }
-            self.key_cooldown = 20; // Prevent multiple triggers
+            self.key_cooldown = 20; 
         } else if window.is_key_down(Key::Space) && self.key_cooldown == 0 {
             self.points.clear();
             self.is_animating = false;
-            self.key_cooldown = 20; // Prevent multiple triggers
+            self.key_cooldown = 20; 
         }
 
         // Handle point dragging
         if self.mouse_down {
             if let Some(idx) = self.dragging_point {
-                // Continue dragging existing point
                 self.points[idx] = self.mouse_pos;
             } else if was_mouse_down {
-                // Check if we should start dragging a point
                 if let Some(idx) = self.find_nearest_point() {
                     self.dragging_point = Some(idx);
                     self.points[idx] = self.mouse_pos;
@@ -76,7 +72,6 @@ impl InputHandler {
             self.dragging_point = None;
         }
 
-        // Clear message if Enter is pressed again
         if window.is_key_down(Key::Enter) && self.message.is_some() && self.key_cooldown == 0 {
             self.message = None;
             self.key_cooldown = 20;
@@ -87,7 +82,7 @@ impl InputHandler {
         let mut closest_idx = None;
         let mut closest_dist = f64::MAX;
         let (mx, my) = self.mouse_pos;
-        let threshold = 20.0; // Distance threshold for dragging
+        let threshold = 20.0;
 
         for (i, &(x, y)) in self.points.iter().enumerate() {
             let dx = x - mx;

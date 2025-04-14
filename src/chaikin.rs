@@ -52,7 +52,6 @@ impl Chaikin {
         // If we need to calculate the next points
         if self.next_points.is_empty() {
             if self.current_step == 0 {
-                // If we're starting, use original points as current
                 self.current_points = self.original_points.clone();
                 
                 // Calculate first Chaikin iteration as next
@@ -73,7 +72,6 @@ impl Chaikin {
         // Interpolate between current and next points
         let result = self.interpolate(self.animation_progress);
         
-        // Return visualization
         self.create_visualization(result)
     }
     
@@ -93,7 +91,6 @@ impl Chaikin {
             let p0 = points[i].position;
             let p1 = points[i+1].position;
             
-            // Q point (1/4 point)
             result.push(Point {
                 position: Vector2::new(
                     0.75 * p0.x + 0.25 * p1.x,
@@ -102,7 +99,6 @@ impl Chaikin {
                 color: [255, 255, 255],
             });
             
-            // R point (3/4 point)
             result.push(Point {
                 position: Vector2::new(
                     0.25 * p0.x + 0.75 * p1.x,
@@ -164,8 +160,6 @@ impl Chaikin {
             color: [255, 255, 255],
         });
         
-        // For intermediate points, we need to map between different counts
-        // Use a continuous mapping based on position along the curve
         
         // Create normalized positions for both point sets
         let curr_len = self.current_points.len();
