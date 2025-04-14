@@ -91,7 +91,6 @@ impl Chaikin {
             let p0 = points[i].position;
             let p1 = points[i+1].position;
             
-            // Q point (1/4 point)
             result.push(Point {
                 position: Vector2::new(
                     0.75 * p0.x + 0.25 * p1.x,
