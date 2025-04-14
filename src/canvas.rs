@@ -973,7 +973,6 @@ impl Canvas {
         }
 
         // Find and connect points of the same color to form continuous curves
-        // let mut red_points = Vec::new();
         let mut green_points = Vec::new();
         
         for point in points {
