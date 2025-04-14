@@ -138,8 +138,7 @@ impl Canvas {
                 if x < width && y < height {
                     let idx = (y * width + x) as usize;
                     if idx < self.buffer.len() {
-                        // Darker background for better contrast
-                        self.buffer[idx] = 0x202020; // Dark gray
+                        self.buffer[idx] = 0x202020;
                     }
                 }
             }
