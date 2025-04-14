@@ -26,12 +26,10 @@ impl InputHandler {
     }
 
     pub fn handle_input(&mut self, window: &mut minifb::Window) {
-        // Update mouse position
         if let Some((x, y)) = window.get_mouse_pos(MouseMode::Pass) {
             self.mouse_pos = (x as f64, y as f64);
         }
 
-        // Check if mouse button is down
         let was_mouse_down = self.mouse_down;
         self.mouse_down = window.get_mouse_down(MouseButton::Left);
 
