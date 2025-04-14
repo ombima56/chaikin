@@ -145,7 +145,7 @@ impl Canvas {
         }
         
         // Draw a border around the rectangle
-        let border_color = 0xFFFFFF; // White border
+        let border_color = 0xFFFFFF;
         
         // Top border
         for x in 5..5 + bg_width {
@@ -180,7 +180,7 @@ impl Canvas {
         }
         
         // Draw the text
-        let mut y = bg_y + 15; // Start position
+        let mut y = bg_y + 15;
         
         for line in lines {
             self.draw_text_string(10, y, line, 0xFFFFFF); // White text
