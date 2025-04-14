@@ -1003,8 +1003,8 @@ impl Canvas {
             self.draw_point(
                 point.position.x,
                 point.position.y,
-                [255, 165, 0], // Orange for control points - more visible
-                if points.len() == 1 { 6.0 } else { 4.0 }, // Larger circles for better visibility
+                [255, 165, 0],
+                if points.len() == 1 { 6.0 } else { 4.0 }, 
             );
         }
         
