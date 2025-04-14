@@ -34,8 +34,13 @@ $ cd chaikin
 ```
 4. Run the application:
 ```bash
-cargo run
+$ cargo run
 ```
+5. To run the unit tests:
+```bash
+$ cargo test
+```
+
 ## Usage
 
 * To be able to see the animation you need to first add control points. You can do this by left-clicking the mouse on the canvas displayed when you run the program.
