@@ -62,7 +62,6 @@ impl Canvas {
     
         input.handle_input(&mut self.window);
     
-        // Clear buffer
         self.buffer.fill(0);
     
         // Convert points to Point structs
