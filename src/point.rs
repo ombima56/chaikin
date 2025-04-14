@@ -10,7 +10,7 @@ impl Point {
     pub fn new(x: f64, y: f64) -> Self {
         Self {
             position: Vector2::new(x, y),
-            color: [255, 255, 255], // Default white color
+            color: [255, 255, 255], 
         }
     }
 
