@@ -47,11 +47,11 @@ impl InputHandler {
             } else if !self.is_animating {
                 self.is_animating = true;
             }
-            self.key_cooldown = 20; // Prevent multiple triggers
+            self.key_cooldown = 20; 
         } else if window.is_key_down(Key::Space) && self.key_cooldown == 0 {
             self.points.clear();
             self.is_animating = false;
-            self.key_cooldown = 20; // Prevent multiple triggers
+            self.key_cooldown = 20; 
         }
 
         // Handle point dragging
