@@ -52,7 +52,6 @@ impl Chaikin {
         // If we need to calculate the next points
         if self.next_points.is_empty() {
             if self.current_step == 0 {
-                // If we're starting, use original points as current
                 self.current_points = self.original_points.clone();
                 
                 // Calculate first Chaikin iteration as next
