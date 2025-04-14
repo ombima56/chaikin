@@ -10,6 +10,7 @@ pub struct Canvas {
     chaikin: Chaikin,
     last_frame_time: Instant,
     frame_duration: Duration,
+    empty_points_message: Option<String>,
 }
 
 impl Canvas {
@@ -42,6 +43,7 @@ impl Canvas {
             chaikin,
             last_frame_time: Instant::now(),
             frame_duration: Duration::from_millis(16), // ~60 FPS
+            empty_points_message: None,
         }
     }
 
@@ -71,6 +73,11 @@ impl Canvas {
             .map(|&(x, y)| Point::new(x, y))
             .collect();
 
+        // Check if Enter is pressed with no points
+        if self.window.is_key_down(minifb::Key::Enter) && points.is_empty() {
+            self.empty_points_message = Some("Please draw some points before pressing Enter".to_string());
+        }
+
         // Update Chaikin points if animating
         if input.is_animating() && !points.is_empty() {
             self.chaikin.set_points(points.clone());
@@ -94,6 +101,11 @@ impl Canvas {
             if self.window.is_key_down(minifb::Key::Enter) {
                 input.clear_message();
             }
+
+            // Clear message after another Enter press
+            if self.window.is_key_down(minifb::Key::Enter) {
+                self.empty_points_message = None;
+            }
         }
 
         // Update window
@@ -103,31 +115,788 @@ impl Canvas {
     }
 
     fn draw_message(&mut self, message: &str) {
+        // Calculate dimensions for background
+        let width = self.window.get_size().0;
         let height = self.window.get_size().1;
-        let mut y = height - 30;
         let lines: Vec<&str> = message.lines().collect();
+        let line_count = lines.len();
         
-        for line in lines {
-            let mut x = 10;
-            for c in line.chars() {
-                if c == ' ' {
-                    x += 10;
-                } else {
-                    self.draw_char(x, y, c, [255, 255, 255]);
-                    x += 10;
+        // Find the longest line to determine background width
+        let max_len = lines.iter().map(|line| line.len()).max().unwrap_or(0);
+        let bg_width = (max_len * 10).min(width - 20);
+        let bg_height = line_count * 25 + 20;
+        
+        // Draw semi-transparent background rectangle
+        let bg_y = height - bg_height - 10;
+        for y in bg_y..bg_y + bg_height {
+            for x in 5..5 + bg_width {
+                if x < width && y < height {
+                    let idx = (y * width + x) as usize;
+                    if idx < self.buffer.len() {
+                        // Darker background for better contrast
+                        self.buffer[idx] = 0x202020; // Dark gray
+                    }
                 }
             }
-            y -= 15;
+        }
+        
+        // Draw a border around the rectangle
+        let border_color = 0xFFFFFF; // White border
+        
+        // Top border
+        for x in 5..5 + bg_width {
+            let idx = (bg_y * width + x) as usize;
+            if idx < self.buffer.len() {
+                self.buffer[idx] = border_color;
+            }
+        }
+        
+        // Bottom border
+        for x in 5..5 + bg_width {
+            let idx = ((bg_y + bg_height - 1) * width + x) as usize;
+            if idx < self.buffer.len() {
+                self.buffer[idx] = border_color;
+            }
+        }
+        
+        // Left border
+        for y in bg_y..bg_y + bg_height {
+            let idx = (y * width + 5) as usize;
+            if idx < self.buffer.len() {
+                self.buffer[idx] = border_color;
+            }
+        }
+        
+        // Right border
+        for y in bg_y..bg_y + bg_height {
+            let idx = (y * width + 5 + bg_width - 1) as usize;
+            if idx < self.buffer.len() {
+                self.buffer[idx] = border_color;
+            }
+        }
+        
+        // Draw the text
+        let mut y = bg_y + 15; // Start position
+        
+        for line in lines {
+            self.draw_text_string(10, y, line, 0xFFFFFF); // White text
+            y += 25; // Line spacing
+        }
+    }
+
+    fn draw_text_string(&mut self, x: usize, y: usize, text: &str, color: u32) {
+        let mut pos_x = x;
+        
+        for c in text.chars() {
+            self.draw_large_char(pos_x, y, c, color);
+            pos_x += 10; // Character spacing
         }
     }
     
-    fn draw_char(&mut self, x: usize, y: usize, c: char, color: [u8; 3]) {
-        // Very simple character rendering - just dots for simplicity
+    fn draw_large_char(&mut self, x: usize, y: usize, c: char, color: u32) {
+        // Simplified larger characters using blocks instead of bitmaps
         match c {
-            'A'..='Z' | 'a'..='z' | '0'..='9' | '.' | ',' | '!' | '?' | ':' | ';' | '(' | ')' => {
-                self.draw_point(x as f64, y as f64, color, 3.0);
+            'A'..='Z' | 'a'..='z' | '0'..='9' | '.' | ',' | '!' | '?' | ':' | ';' | '(' | ')' | ' ' => {
+                // Draw more visible characters
+                self.draw_block_char(x, y, c, color);
+            },
+            _ => {
+                // For unsupported characters, draw a visible placeholder
+                self.draw_block_char(x, y, '#', color);
             }
-            _ => {}
+        }
+    }
+
+    fn draw_block_char(&mut self, x_start: usize, y_start: usize, c: char, color: u32) {
+        let width = self.window.get_size().0;
+        
+        // Define character shapes using simple block patterns
+        // Each character is 8x12 pixels
+        
+        // Get the pattern for this character
+        let pattern = match c {
+            'P' => [
+                "  ████  ",
+                " ██  ██ ",
+                " ██  ██ ",
+                " █████  ",
+                " ██     ",
+                " ██     ",
+                "        ",
+            ],
+            'l' => [
+                " ██     ",
+                " ██     ",
+                " ██     ",
+                " ██     ",
+                " ██     ",
+                " ██████ ",
+                "        ",
+            ],
+            'e' => [
+                "        ",
+                "  ████  ",
+                " ██  ██ ",
+                " ██████ ",
+                " ██     ",
+                "  ████  ",
+                "        ",
+            ],
+            'a' => [
+                "        ",
+                "  ████  ",
+                "     ██ ",
+                "  █████ ",
+                " ██  ██ ",
+                "  █████ ",
+                "        ",
+            ],
+            's' => [
+                "        ",
+                "  ████  ",
+                " ██     ",
+                "  ████  ",
+                "     ██ ",
+                " █████  ",
+                "        ",
+            ],
+            'd' => [
+                "     ██ ",
+                "     ██ ",
+                "  █████ ",
+                " ██  ██ ",
+                " ██  ██ ",
+                "  █████ ",
+                "        ",
+            ],
+            'r' => [
+                "        ",
+                " ██ ██  ",
+                " ███    ",
+                " ██     ",
+                " ██     ",
+                " ██     ",
+                "        ",
+            ],
+            'w' => [
+                "        ",
+                " ██  ██ ",
+                " ██  ██ ",
+                " ██  ██ ",
+                " ██████ ",
+                "  ██ ██ ",
+                "        ",
+            ],
+            'c' => [
+                "        ",
+                "  ████  ",
+                " ██     ",
+                " ██     ",
+                " ██     ",
+                "  ████  ",
+                "        ",
+            ],
+            'o' => [
+                "        ",
+                "  ████  ",
+                " ██  ██ ",
+                " ██  ██ ",
+                " ██  ██ ",
+                "  ████  ",
+                "        ",
+            ],
+            'n' => [
+                "        ",
+                " ██ ██  ",
+                " ███ ██ ",
+                " ██ ███ ",
+                " ██  ██ ",
+                " ██  ██ ",
+                "        ",
+            ],
+            't' => [
+                "  ██    ",
+                "  ██    ",
+                " █████  ",
+                "  ██    ",
+                "  ██    ",
+                "   ███  ",
+                "        ",
+            ],
+            'i' => [
+                "  ██    ",
+                "        ",
+                " ███    ",
+                "  ██    ",
+                "  ██    ",
+                " ████   ",
+                "        ",
+            ],
+            'u' => [
+                "        ",
+                " ██  ██ ",
+                " ██  ██ ",
+                " ██  ██ ",
+                " ██  ██ ",
+                "  █████ ",
+                "        ",
+            ],
+            'E' => [
+                " ██████ ",
+                " ██     ",
+                " █████  ",
+                " ██     ",
+                " ██     ",
+                " ██████ ",
+                "        ",
+            ],
+            'f' => [
+                "   ███  ",
+                "  ██    ",
+                " █████  ",
+                "  ██    ",
+                "  ██    ",
+                "  ██    ",
+                "        ",
+            ],
+            'p' => [
+                "        ",
+                " █████  ",
+                " ██  ██ ",
+                " █████  ",
+                " ██     ",
+                " ██     ",
+                "        ",
+            ],
+            'y' => [
+                "        ",
+                " ██  ██ ",
+                " ██  ██ ",
+                "  █████ ",
+                "     ██ ",
+                " █████  ",
+                "        ",
+            ],
+            'b' => [
+                " ██     ",
+                " ██     ",
+                " █████  ",
+                " ██  ██ ",
+                " ██  ██ ",
+                " █████  ",
+                "        ",
+            ],
+            'g' => [
+                "        ",
+                "  █████ ",
+                " ██  ██ ",
+                "  █████ ",
+                "     ██ ",
+                " █████  ",
+                "        ",
+            ],
+            'h' => [
+                " ██     ",
+                " ██     ",
+                " █████  ",
+                " ██  ██ ",
+                " ██  ██ ",
+                " ██  ██ ",
+                "        ",
+            ],
+            'j' => [
+                "    ██  ",
+                "        ",
+                "   ███  ",
+                "    ██  ",
+                "    ██  ",
+                " ████   ",
+                "        ",
+            ],
+            'k' => [
+                " ██     ",
+                " ██  ██ ",
+                " ██ ██  ",
+                " ████   ",
+                " ██ ██  ",
+                " ██  ██ ",
+                "        ",
+            ],
+            'm' => [
+                "        ",
+                " ██ ██  ",
+                " ██████ ",
+                " ██ ███ ",
+                " ██  ██ ",
+                " ██  ██ ",
+                "        ",
+            ],
+            'q' => [
+                "        ",
+                "  █████ ",
+                " ██  ██ ",
+                "  █████ ",
+                "     ██ ",
+                "     ██ ",
+                "        ",
+            ],
+            'v' => [
+                "        ",
+                " ██  ██ ",
+                " ██  ██ ",
+                " ██  ██ ",
+                "  ████  ",
+                "   ██   ",
+                "        ",
+            ],
+            'x' => [
+                "        ",
+                " ██  ██ ",
+                "  ████  ",
+                "   ██   ",
+                "  ████  ",
+                " ██  ██ ",
+                "        ",
+            ],
+            'z' => [
+                "        ",
+                " ██████ ",
+                "    ██  ",
+                "   ██   ",
+                "  ██    ",
+                " ██████ ",
+                "        ",
+            ],
+            'A' => [
+                "  ████  ",
+                " ██  ██ ",
+                " ██  ██ ",
+                " ██████ ",
+                " ██  ██ ",
+                " ██  ██ ",
+                "        ",
+            ],
+            'B' => [
+                " █████  ",
+                " ██  ██ ",
+                " █████  ",
+                " ██  ██ ",
+                " ██  ██ ",
+                " █████  ",
+                "        ",
+            ],
+            'C' => [
+                "  ████  ",
+                " ██  ██ ",
+                " ██     ",
+                " ██     ",
+                " ██  ██ ",
+                "  ████  ",
+                "        ",
+            ],
+            'D' => [
+                " █████  ",
+                " ██  ██ ",
+                " ██  ██ ",
+                " ██  ██ ",
+                " ██  ██ ",
+                " █████  ",
+                "        ",
+            ],
+            'F' => [
+                " ██████ ",
+                " ██     ",
+                " █████  ",
+                " ██     ",
+                " ██     ",
+                " ██     ",
+                "        ",
+            ],
+            'G' => [
+                "  ████  ",
+                " ██  ██ ",
+                " ██     ",
+                " ██ ███ ",
+                " ██  ██ ",
+                "  █████ ",
+                "        ",
+            ],
+            'H' => [
+                " ██  ██ ",
+                " ██  ██ ",
+                " ██████ ",
+                " ██  ██ ",
+                " ██  ██ ",
+                " ██  ██ ",
+                "        ",
+            ],
+            'I' => [
+                " ██████ ",
+                "   ██   ",
+                "   ██   ",
+                "   ██   ",
+                "   ██   ",
+                " ██████ ",
+                "        ",
+            ],
+            'J' => [
+                "     ██ ",
+                "     ██ ",
+                "     ██ ",
+                "     ██ ",
+                " ██  ██ ",
+                "  ████  ",
+                "        ",
+            ],
+            'K' => [
+                " ██  ██ ",
+                " ██ ██  ",
+                " ████   ",
+                " ████   ",
+                " ██ ██  ",
+                " ██  ██ ",
+                "        ",
+            ],
+            'L' => [
+                " ██     ",
+                " ██     ",
+                " ██     ",
+                " ██     ",
+                " ██     ",
+                " ██████ ",
+                "        ",
+            ],
+            'M' => [
+                " ██   ██",
+                " ███ ███",
+                " ███████",
+                " ██ █ ██",
+                " ██   ██",
+                " ██   ██",
+                "        ",
+            ],
+            'N' => [
+                " ██  ██ ",
+                " ███ ██ ",
+                " ██████ ",
+                " ██████ ",
+                " ██ ███ ",
+                " ██  ██ ",
+                "        ",
+            ],
+            'O' => [
+                "  ████  ",
+                " ██  ██ ",
+                " ██  ██ ",
+                " ██  ██ ",
+                " ██  ██ ",
+                "  ████  ",
+                "        ",
+            ],
+            'Q' => [
+                "  ████  ",
+                " ██  ██ ",
+                " ██  ██ ",
+                " ██  ██ ",
+                " ██ ██  ",
+                "  ██ ██ ",
+                "        ",
+            ],
+            'R' => [
+                " █████  ",
+                " ██  ██ ",
+                " █████  ",
+                " ████   ",
+                " ██ ██  ",
+                " ██  ██ ",
+                "        ",
+            ],
+            'S' => [
+                "  █████ ",
+                " ██     ",
+                "  ████  ",
+                "     ██ ",
+                " ██  ██ ",
+                "  ████  ",
+                "        ",
+            ],
+            'T' => [
+                "██████  ",
+                "  ██    ",
+                "  ██    ",
+                "  ██    ",
+                "  ██    ",
+                "  ██    ",
+                "        ",
+            ],
+            'U' => [
+                " ██  ██ ",
+                " ██  ██ ",
+                " ██  ██ ",
+                " ██  ██ ",
+                " ██  ██ ",
+                "  ████  ",
+                "        ",
+            ],
+            'V' => [
+                " ██  ██ ",
+                " ██  ██ ",
+                " ██  ██ ",
+                " ██  ██ ",
+                "  ████  ",
+                "   ██   ",
+                "        ",
+            ],
+            'W' => [
+                " ██   ██",
+                " ██   ██",
+                " ██ █ ██",
+                " ███████",
+                " ███ ███",
+                " ██   ██",
+                "        ",
+            ],
+            'X' => [
+                " ██  ██ ",
+                " ██  ██ ",
+                "  ████  ",
+                "  ████  ",
+                " ██  ██ ",
+                " ██  ██ ",
+                "        ",
+            ],
+            'Y' => [
+                " ██  ██ ",
+                " ██  ██ ",
+                "  ████  ",
+                "   ██   ",
+                "   ██   ",
+                "   ██   ",
+                "        ",
+            ],
+            'Z' => [
+                " ██████ ",
+                "    ██  ",
+                "   ██   ",
+                "  ██    ",
+                " ██     ",
+                " ██████ ",
+                "        ",
+            ],
+            '0' => [
+                "  ████  ",
+                " ██  ██ ",
+                " ██ ███ ",
+                " ███ ██ ",
+                " ██  ██ ",
+                "  ████  ",
+                "        ",
+            ],
+            '1' => [
+                "   ██   ",
+                "  ███   ",
+                " ████   ",
+                "   ██   ",
+                "   ██   ",
+                " ██████ ",
+                "        ",
+            ],
+            '2' => [
+                "  ████  ",
+                " ██  ██ ",
+                "    ██  ",
+                "   ██   ",
+                "  ██    ",
+                " ██████ ",
+                "        ",
+            ],
+            '3' => [
+                "  ████  ",
+                " ██  ██ ",
+                "    ██  ",
+                "   ███  ",
+                " ██  ██ ",
+                "  ████  ",
+                "        ",
+            ],
+            '4' => [
+                "    ██  ",
+                "   ███  ",
+                "  ████  ",
+                " ██ ██  ",
+                " ██████ ",
+                "    ██  ",
+                "        ",
+            ],
+            '5' => [
+                " ██████ ",
+                " ██     ",
+                " █████  ",
+                "     ██ ",
+                " ██  ██ ",
+                "  ████  ",
+                "        ",
+            ],
+            '6' => [
+                "  ████  ",
+                " ██     ",
+                " █████  ",
+                " ██  ██ ",
+                " ██  ██ ",
+                "  ████  ",
+                "        ",
+            ],
+            '7' => [
+                " ██████ ",
+                "     ██ ",
+                "    ██  ",
+                "   ██   ",
+                "  ██    ",
+                " ██     ",
+                "        ",
+            ],
+            '8' => [
+                "  ████  ",
+                " ██  ██ ",
+                "  ████  ",
+                "  ████  ",
+                " ██  ██ ",
+                "  ████  ",
+                "        ",
+            ],
+            '9' => [
+                "  ████  ",
+                " ██  ██ ",
+                " ██  ██ ",
+                "  █████ ",
+                "     ██ ",
+                "  ████  ",
+                "        ",
+            ],
+            ' ' => [
+                "        ",
+                "        ",
+                "        ",
+                "        ",
+                "        ",
+                "        ",
+                "        ",
+            ],
+            '.' => [
+                "        ",
+                "        ",
+                "        ",
+                "        ",
+                "        ",
+                "  ██    ",
+                "        ",
+            ],
+            ',' => [
+                "        ",
+                "        ",
+                "        ",
+                "        ",
+                "  ██    ",
+                "  ██    ",
+                " ██     ",
+            ],
+            '!' => [
+                "  ██    ",
+                "  ██    ",
+                "  ██    ",
+                "  ██    ",
+                "        ",
+                "  ██    ",
+                "        ",
+            ],
+            '?' => [
+                "  ████  ",
+                " ██  ██ ",
+                "    ██  ",
+                "   ██   ",
+                "        ",
+                "   ██   ",
+                "        ",
+            ],
+            ':' => [
+                "        ",
+                "  ██    ",
+                "        ",
+                "        ",
+                "  ██    ",
+                "        ",
+                "        ",
+            ],
+            ';' => [
+                "        ",
+                "  ██    ",
+                "        ",
+                "        ",
+                "  ██    ",
+                " ██     ",
+                "        ",
+            ],
+            '(' => [
+                "   ██   ",
+                "  ██    ",
+                " ██     ",
+                " ██     ",
+                "  ██    ",
+                "   ██   ",
+                "        ",
+            ],
+            ')' => [
+                " ██     ",
+                "  ██    ",
+                "   ██   ",
+                "   ██   ",
+                "  ██    ",
+                " ██     ",
+                "        ",
+            ],
+            '\n' => [
+                "        ",
+                "        ",
+                "        ",
+                "        ",
+                "        ",
+                "        ",
+                "        ",
+            ],
+            _ => [
+                " ██████ ",
+                " ██  ██ ",
+                " ██  ██ ",
+                " ██  ██ ",
+                " ██  ██ ",
+                " ██████ ",
+                "        ",
+            ],
+        };
+        
+        // Draw the pattern
+        for (row_idx, &row) in pattern.iter().enumerate() {
+            for (col_idx, c) in row.chars().enumerate() {
+                if c == '█' {
+                    let px = x_start + col_idx;
+                    let py = y_start + row_idx;
+                    
+                    // Draw larger pixels (2x2)
+                    for dy in 0..2 {
+                        for dx in 0..2 {
+                            let x = px + dx;
+                            let y = py + dy;
+                            
+                            if x < self.window.get_size().0 && y < self.window.get_size().1 {
+                                let idx = (y * width + x) as usize;
+                                if idx < self.buffer.len() {
+                                    self.buffer[idx] = color;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -246,9 +1015,8 @@ impl Canvas {
                 points[0].position.y,
                 points[1].position.x,
                 points[1].position.y,
-                [255, 165, 0] // Orange to match control points
+                [255, 165, 0]
             );
         }
-
     }
 }
