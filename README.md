@@ -37,6 +37,7 @@ $ cd chaikin
 cargo run
 ```
 ## Usage
+
 * To be able to see the animation you need to first add control points. You can do this by left-clicking the mouse on the canvas displayed when you run the program.
 
 * You can add multiple points. Once you are done click ENTER button on your keyboard to start the animation. 
