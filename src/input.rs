@@ -72,7 +72,6 @@ impl InputHandler {
             self.dragging_point = None;
         }
 
-        // Clear message if Enter is pressed again
         if window.is_key_down(Key::Enter) && self.message.is_some() && self.key_cooldown == 0 {
             self.message = None;
             self.key_cooldown = 20;
@@ -83,7 +82,7 @@ impl InputHandler {
         let mut closest_idx = None;
         let mut closest_dist = f64::MAX;
         let (mx, my) = self.mouse_pos;
-        let threshold = 20.0; // Distance threshold for dragging
+        let threshold = 20.0;
 
         for (i, &(x, y)) in self.points.iter().enumerate() {
             let dx = x - mx;
