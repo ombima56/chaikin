@@ -72,7 +72,6 @@ impl Chaikin {
         // Interpolate between current and next points
         let result = self.interpolate(self.animation_progress);
         
-        // Return visualization
         self.create_visualization(result)
     }
     
