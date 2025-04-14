@@ -45,11 +45,13 @@ $ cargo test
 
 * To be able to see the animation you need to first add control points. You can do this by left-clicking the mouse on the canvas displayed when you run the program.
 
-* You can add multiple points. Once you are done click ENTER button on your keyboard to start the animation. 
+* You can add multiple points. Once you are done click ENTER key on your keyboard to start the animation. 
 
 * You should add at least 2 points to get the animation. Two points will produce a straight line. To get a curve you'll have to add multiple points e.g 3 points at different angles creating an arrow-shaped path.
 
 * To clear the canvas click the space bar.
+
+* To exit the program click the ESC key.
 
 
 ## Known Issues
