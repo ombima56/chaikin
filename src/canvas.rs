@@ -60,7 +60,6 @@ impl Canvas {
         }
         self.last_frame_time = Instant::now();
     
-        // Handle input
         input.handle_input(&mut self.window);
     
         // Clear buffer
