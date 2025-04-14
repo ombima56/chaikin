@@ -183,7 +183,7 @@ impl Canvas {
         let mut y = bg_y + 15;
         
         for line in lines {
-            self.draw_text_string(10, y, line, 0xFFFFFF); // White text
+            self.draw_text_string(10, y, line, 0xFFFFFF);
             y += 25; // Line spacing
         }
     }
