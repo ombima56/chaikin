@@ -160,8 +160,6 @@ impl Chaikin {
             color: [255, 255, 255],
         });
         
-        // For intermediate points, we need to map between different counts
-        // Use a continuous mapping based on position along the curve
         
         // Create normalized positions for both point sets
         let curr_len = self.current_points.len();
