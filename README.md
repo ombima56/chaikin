@@ -3,6 +3,7 @@
 An interactive visualization of Chaikin's curve subdivision algorithm implemented in Rust using the minifb window library.
 
 ## System Requirements
+* You need to have Rust installed in your machine.
 
 ### Linux Dependencies
 To run this application on Linux, you need the following system packages:
@@ -22,12 +23,28 @@ The project uses the following Rust crates:
 ## Building and Running
 
 1. Make sure you have Rust and Cargo installed
+
 2. Install the required system dependencies (see above)
-3. Clone the repository
+
+3. Clone the repository and navigate to the directory.
+
+```bash
+$ git clone https://learn.zone01kisumu.ke/git/hiombima/chaikin.git
+$ cd chaikin
+```
 4. Run the application:
 ```bash
 cargo run
 ```
+## Usage
+* To be able to see the animation you need to first add control points. You can do this by left-clicking the mouse on the canvas displayed when you run the program.
+
+* You can add multiple points. Once you are done click ENTER button on your keyboard to start the animation. 
+
+* You should add at least 2 points to get the animation. Two points will produce a straight line. To get a curve you'll have to add multiple points e.g 3 points at different angles creating an arrow-shaped path.
+
+* To clear the canvas click the space bar.
+
 
 ## Known Issues
 
