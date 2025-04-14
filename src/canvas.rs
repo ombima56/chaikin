@@ -989,7 +989,7 @@ impl Canvas {
                 green_points[i].position.y,
                 green_points[i + 1].position.x,
                 green_points[i + 1].position.y,
-                [0, 255, 255] // Cyan for the animated curve - better contrast
+                [0, 255, 255] 
             );
         }
     }
