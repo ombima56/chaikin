@@ -201,11 +201,9 @@ impl Canvas {
         // Simplified larger characters using blocks instead of bitmaps
         match c {
             'A'..='Z' | 'a'..='z' | '0'..='9' | '.' | ',' | '!' | '?' | ':' | ';' | '(' | ')' | ' ' => {
-                // Draw more visible characters
                 self.draw_block_char(x, y, c, color);
             },
             _ => {
-                // For unsupported characters, draw a visible placeholder
                 self.draw_block_char(x, y, '#', color);
             }
         }
