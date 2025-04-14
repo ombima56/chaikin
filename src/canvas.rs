@@ -98,7 +98,6 @@ impl Canvas {
         if let Some(message) = input_message {
             self.draw_message(&message);
             
-            // Clear message after Enter is pressed
             if self.window.is_key_down(minifb::Key::Enter) {
                 input.clear_message();
             }
