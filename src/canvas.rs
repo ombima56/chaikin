@@ -977,9 +977,8 @@ impl Canvas {
         
         for point in points {
             match point.color {
-                // [255, 0, 0] => red_points.push(point),
                 [0, 255, 0] => green_points.push(point),
-                _ => {} // Ignore other colors
+                _ => {} 
             }
         }
 
