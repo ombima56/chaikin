@@ -99,7 +99,6 @@ impl Chaikin {
                 color: [255, 255, 255],
             });
             
-            // R point (3/4 point)
             result.push(Point {
                 position: Vector2::new(
                     0.25 * p0.x + 0.75 * p1.x,
