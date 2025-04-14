@@ -10,7 +10,7 @@ pub struct Canvas {
     chaikin: Chaikin,
     last_frame_time: Instant,
     frame_duration: Duration,
-    empty_points_message: Option<String>,
+    empty_points_message: Option<(String, Instant)>,
 }
 
 impl Canvas {
@@ -59,25 +59,28 @@ impl Canvas {
             std::thread::sleep(self.frame_duration - elapsed);
         }
         self.last_frame_time = Instant::now();
-
+    
         // Handle input
         input.handle_input(&mut self.window);
-
+    
         // Clear buffer
         self.buffer.fill(0);
-
+    
         // Convert points to Point structs
         let points: Vec<Point> = input
             .points()
             .iter()
             .map(|&(x, y)| Point::new(x, y))
             .collect();
-
+    
         // Check if Enter is pressed with no points
         if self.window.is_key_down(minifb::Key::Enter) && points.is_empty() {
-            self.empty_points_message = Some("Please draw some points before pressing Enter".to_string());
+            self.empty_points_message = Some((
+                "Please draw some points before pressing Enter".to_string(),
+                Instant::now()
+            ));
         }
-
+    
         // Update Chaikin points if animating
         if input.is_animating() && !points.is_empty() {
             self.chaikin.set_points(points.clone());
@@ -86,28 +89,35 @@ impl Canvas {
         } else {
             self.draw_points(&points);
         }
-
+    
         // Draw dragging indicator if dragging
         if let Some(idx) = input.dragging_point() {
             let (x, y) = input.points()[idx];
-            self.draw_point(x as f64, y as f64, [255, 0, 0], 8.0); // Red circle for dragging point
+            self.draw_point(x as f64, y as f64, [255, 0, 0], 8.0);
         }
-
-        // Draw message if present
-        if let Some(message) = input.message() {
-            self.draw_message(message);
+    
+        // Store the message in a local variable to avoid borrowing issues
+        let input_message = input.message().map(|s| s.to_string());
+        if let Some(message) = input_message {
+            self.draw_message(&message);
             
             // Clear message after Enter is pressed
             if self.window.is_key_down(minifb::Key::Enter) {
                 input.clear_message();
             }
-
-            // Clear message after another Enter press
-            if self.window.is_key_down(minifb::Key::Enter) {
+        }
+    
+        // Store the empty points message in a local variable to avoid borrowing issues
+        let empty_message = self.empty_points_message.as_ref().map(|(msg, time)| (msg.clone(), *time));
+        if let Some((message, display_time)) = empty_message {
+            let elapsed = Instant::now() - display_time;
+            if elapsed < Duration::from_secs(2) {
+                self.draw_message(&message);
+            } else {
                 self.empty_points_message = None;
             }
         }
-
+    
         // Update window
         self.window
             .update_with_buffer(&self.buffer, 800, 600)
