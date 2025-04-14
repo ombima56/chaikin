@@ -88,7 +88,6 @@ impl Canvas {
             self.draw_points(&points);
         }
     
-        // Draw dragging indicator if dragging
         if let Some(idx) = input.dragging_point() {
             let (x, y) = input.points()[idx];
             self.draw_point(x as f64, y as f64, [255, 0, 0], 8.0);
