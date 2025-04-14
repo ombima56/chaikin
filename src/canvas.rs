@@ -42,7 +42,7 @@ impl Canvas {
             buffer,
             chaikin,
             last_frame_time: Instant::now(),
-            frame_duration: Duration::from_millis(16), // ~60 FPS
+            frame_duration: Duration::from_millis(16),
             empty_points_message: None,
         }
     }
